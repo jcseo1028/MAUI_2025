@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using MyMetronom.Services;
+using MyMetronom.Utils;
 
 namespace MyMetronom
 {
@@ -15,11 +17,17 @@ namespace MyMetronom
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
                 });
 
+            // Services
+            builder.Services.AddSingleton<IBeepService, BeepService>();
+            builder.Services.AddSingleton<IMetronomeService, MetronomeService>();
+
 #if DEBUG
     		builder.Logging.AddDebug();
 #endif
 
-            return builder.Build();
+            var app = builder.Build();
+            ServiceHelper.Services = app.Services;
+            return app;
         }
     }
 }
