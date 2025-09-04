@@ -24,13 +24,33 @@ namespace MyMetronom
             UpdateBpmLabel(bpm);
 
             var subIndex = Preferences.Get(PrefSubdivision, 0);
-            SubdivisionPicker.SelectedIndex = Math.Clamp(subIndex, 0, 3);
+            SetSubdivisionByIndex(subIndex);
 
             var yt = Preferences.Get(PrefYoutube, string.Empty);
             if (!string.IsNullOrEmpty(yt))
                 YoutubeUrlEntry.Text = yt;
 
             _metronome.Tick += OnTick;
+        }
+
+        private void SetSubdivisionByIndex(int index)
+        {
+            index = Math.Clamp(index, 0, 3);
+            QuarterRadio.IsChecked = index == 0;
+            EighthRadio.IsChecked = index == 1;
+            TripletRadio.IsChecked = index == 2;
+            SixteenthRadio.IsChecked = index == 3;
+
+            var s = index switch
+            {
+                0 => Subdivision.Quarter,
+                1 => Subdivision.Eighth,
+                2 => Subdivision.Triplet,
+                3 => Subdivision.Sixteenth,
+                _ => Subdivision.Quarter
+            };
+            _metronome.SetSubdivision(s);
+            Preferences.Set(PrefSubdivision, index);
         }
 
         protected override void OnAppearing()
@@ -87,19 +107,13 @@ namespace MyMetronom
             BpmSlider.Value = bpm;
         }
 
-        private void OnSubdivisionChanged(object sender, EventArgs e)
+        private void OnSubdivisionRadioCheckedChanged(object? sender, CheckedChangedEventArgs e)
         {
-            var sel = SubdivisionPicker.SelectedIndex;
-            var s = sel switch
-            {
-                0 => Subdivision.Quarter,
-                1 => Subdivision.Eighth,
-                2 => Subdivision.Triplet,
-                3 => Subdivision.Sixteenth,
-                _ => Subdivision.Quarter
-            };
-            _metronome.SetSubdivision(s);
-            Preferences.Set(PrefSubdivision, sel);
+            if (sender is not RadioButton rb || !e.Value)
+                return;
+
+            int index = rb == QuarterRadio ? 0 : rb == EighthRadio ? 1 : rb == TripletRadio ? 2 : 3;
+            SetSubdivisionByIndex(index);
         }
 
         private void OnTick(object? sender, EventArgs e)

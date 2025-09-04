@@ -39,16 +39,43 @@
                                     Clicked="OnStartStopClicked" />
                         </Grid>
 
+                        <!-- 세부 박자 선택: 라디오 버튼 그룹(플랫 버튼 스타일) -->
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalOptions="Center">
-                            <Label Text="Subdivision" VerticalOptions="Center" />
-                            <Picker x:Name="SubdivisionPicker" Grid.Column="1" SelectedIndexChanged="OnSubdivisionChanged">
-                                <Picker.Items>
-                                    <x:String>Quarter</x:String>
-                                    <x:String>Eighth</x:String>
-                                    <x:String>Triplet</x:String>
-                                    <x:String>Sixteenth</x:String>
-                                </Picker.Items>
-                            </Picker>
+                            <Label Text="" VerticalOptions="Center" />
+                            <HorizontalStackLayout Grid.Column="1" Spacing="8">
+                                <RadioButton x:Name="QuarterRadio" GroupName="Subdivision" Style="{StaticResource FlatRadioButton}" CheckedChanged="OnSubdivisionRadioCheckedChanged">
+                                    <RadioButton.Content>
+                                        <HorizontalStackLayout Spacing="1">
+                                            <Image Source="dot_4.png" HeightRequest="32" WidthRequest="32"/>
+                                            <Label Text=""/>
+                                        </HorizontalStackLayout>
+                                    </RadioButton.Content>
+                                </RadioButton>
+                                <RadioButton x:Name="EighthRadio" GroupName="Subdivision" Style="{StaticResource FlatRadioButton}" CheckedChanged="OnSubdivisionRadioCheckedChanged">
+                                    <RadioButton.Content>
+                                        <HorizontalStackLayout Spacing="1">
+                                            <Image Source="dot_8.png" HeightRequest="32" WidthRequest="32"/>
+                                            <Label Text=""/>
+                                        </HorizontalStackLayout>
+                                    </RadioButton.Content>
+                                </RadioButton>
+                                <RadioButton x:Name="TripletRadio" GroupName="Subdivision" Style="{StaticResource FlatRadioButton}" CheckedChanged="OnSubdivisionRadioCheckedChanged">
+                                    <RadioButton.Content>
+                                        <HorizontalStackLayout Spacing="1">
+                                            <Image Source="dot_8_3.png" HeightRequest="32" WidthRequest="32"/>
+                                            <Label Text=""/>
+                                        </HorizontalStackLayout>
+                                    </RadioButton.Content>
+                                </RadioButton>
+                                <RadioButton x:Name="SixteenthRadio" GroupName="Subdivision" Style="{StaticResource FlatRadioButton}" CheckedChanged="OnSubdivisionRadioCheckedChanged">
+                                    <RadioButton.Content>
+                                        <HorizontalStackLayout Spacing="1">
+                                            <Image Source="dot_16.png" HeightRequest="32" WidthRequest="32"/>
+                                            <Label Text=""/>
+                                        </HorizontalStackLayout>
+                                    </RadioButton.Content>
+                                </RadioButton>
+                            </HorizontalStackLayout>
                         </Grid>
                     </VerticalStackLayout>
                 </Grid>

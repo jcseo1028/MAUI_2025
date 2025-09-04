@@ -242,6 +242,39 @@
         </Setter>
     </Style>
 
+    <!-- Flat radio button style with template (fixed) -->
+    <Style x:Key="FlatRadioButton" TargetType="RadioButton">
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="BackgroundColor" Value="Transparent"/>
+        <Setter Property="ControlTemplate">
+            <ControlTemplate>
+                <Border x:Name="Container"
+                        Stroke="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                        StrokeThickness="1"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}"
+                        StrokeShape="RoundRectangle 8" Padding="10,8">
+                    <ContentPresenter />
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="CheckStates">
+                            <VisualState x:Name="Unchecked">
+                                <VisualState.Setters>
+                                    <Setter TargetName="Container" Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}" />
+                                    <Setter TargetName="Container" Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Checked">
+                                <VisualState.Setters>
+                                    <Setter TargetName="Container" Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource Gray600}}" />
+                                    <Setter TargetName="Container" Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Gray300}}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
     <Style TargetType="RadioButton">
         <Setter Property="BackgroundColor" Value="Transparent"/>
         <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
