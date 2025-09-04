@@ -12,6 +12,8 @@ public sealed class MetronomeService : IMetronomeService
 
     public event EventHandler? Tick;
 
+    public Subdivision Subdivision { get; private set; } = Subdivision.Quarter;
+
     public MetronomeService(IBeepService beep)
     {
         _beep = beep;
@@ -39,28 +41,42 @@ public sealed class MetronomeService : IMetronomeService
         Bpm = bpm;
     }
 
+    public void SetSubdivision(Subdivision subdivision)
+        => Subdivision = subdivision;
+
     private async Task RunAsync(CancellationToken ct)
     {
         var sw = new Stopwatch();
         sw.Start();
 
-        var intervalMs = 60000.0 / Bpm;
-        long tickIndex = 0;
+        long globalIndex = 0;
 
         while (!ct.IsCancellationRequested)
         {
-            try { _beep.Beep(25); } catch { }
-            Tick?.Invoke(this, EventArgs.Empty);
+            var div = (int)Subdivision;
+            var subIndex = (int)(globalIndex % div);
+            var isAccent = subIndex == 0;
 
-            tickIndex++;
-            var nextTargetMs = tickIndex * intervalMs;
+            try
+            {
+                // 강조(시작음)과 일반음 차별: 길이와(Windows는 주파수도) 다르게
+                if (OperatingSystem.IsWindows())
+                    _beep.Beep(isAccent ? 60 : 25, isAccent ? 1400 : 800);
+                else
+                    _beep.Beep(isAccent ? 60 : 25);
+            }
+            catch { }
+
+            Tick?.Invoke(this, EventArgs.Empty);
+            globalIndex++;
+
+            var intervalMs = 60000.0 / (Bpm * div);
+            var nextTargetMs = globalIndex * intervalMs;
             var delayMs = nextTargetMs - sw.Elapsed.TotalMilliseconds;
             if (delayMs < 0) delayMs = 0;
 
             try { await Task.Delay(TimeSpan.FromMilliseconds(delayMs), ct); }
             catch (TaskCanceledException) { break; }
-
-            intervalMs = 60000.0 / Bpm;
         }
 
         sw.Stop();

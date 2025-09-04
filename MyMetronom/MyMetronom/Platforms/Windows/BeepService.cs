@@ -4,16 +4,16 @@ namespace MyMetronom;
 
 public sealed class BeepService : IBeepService
 {
-    public void Beep(int milliseconds = 30)
+    public void Beep(int milliseconds = 30, int? frequencyHz = null)
     {
-        // Fall back to Console.Beep if SystemSounds is unavailable without extra package
         try
         {
-            Console.Beep(800, Math.Max(1, milliseconds));
+            // 강조음은 더 높은 톤으로 구분
+            if (frequencyHz.HasValue)
+                Console.Beep(Math.Clamp(frequencyHz.Value, 37, 32767), Math.Max(1, milliseconds));
+            else
+                Console.Beep(800, Math.Max(1, milliseconds));
         }
-        catch
-        {
-            // ignore if not supported (non-interactive sessions)
-        }
+        catch { }
     }
 }

@@ -4,35 +4,53 @@
              x:Class="MyMetronom.MainPage"
              Title="Metronome">
 
+    <!-- ScrollView의 콘텐츠로 Grid를 두고, 그 안에서 BoxView(배경)와 컨트롤을 겹칩니다. -->
     <ScrollView>
-        <VerticalStackLayout Padding="24" Spacing="18">
-            <Label Text="Metronome" Style="{StaticResource Headline}" />
-
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalOptions="Center">
-                <Label Text="BPM" VerticalOptions="Center" />
-                <Slider x:Name="BpmSlider"
-                        Grid.Column="1"
-                        Minimum="30" Maximum="300"
-                        ValueChanged="OnBpmChanged" />
-            </Grid>
-
-            <!-- BPM 표시 및 Up/Down + Start/Stop -->
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12" VerticalOptions="Center">
-                <Button Text="-" Clicked="OnBpmDownClicked" />
-                <Label x:Name="BpmLabel" Grid.Column="1" Text="120 BPM" VerticalOptions="Center" HorizontalOptions="Center" />
-                <Button Grid.Column="2" Text="+" Clicked="OnBpmUpClicked" />
-                <Button Grid.Column="3"
-                        x:Name="StartStopButton"
-                        Text="Start"
-                        Clicked="OnStartStopClicked" />
-            </Grid>
-
+        <Grid Padding="16" VerticalOptions="Start">
+            <!-- 배경/플래시 역할: 콘텐츠 크기에 맞춰짐 -->
             <BoxView x:Name="TickIndicator"
-                     HeightRequest="24"
-                     BackgroundColor="{StaticResource Primary}" 
+                     BackgroundColor="{StaticResource Primary}"
                      Opacity="0.25"
-                     CornerRadius="6" />
-        </VerticalStackLayout>
+                     CornerRadius="12"
+                     InputTransparent="True" />
+
+            <!-- 실제 컨트롤 -->
+            <VerticalStackLayout Padding="24" Spacing="18" VerticalOptions="Start">
+                <Label Text="Metronome" Style="{StaticResource Headline}" />
+
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalOptions="Center">
+                    <Label Text="BPM" VerticalOptions="Center" />
+                    <Slider x:Name="BpmSlider"
+                            Grid.Column="1"
+                            Minimum="30" Maximum="300"
+                            ValueChanged="OnBpmChanged" />
+                </Grid>
+
+                <!-- BPM 표시 및 Up/Down + Start/Stop -->
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12" VerticalOptions="Center">
+                    <Button Text="-" Clicked="OnBpmDownClicked" />
+                    <Label x:Name="BpmLabel" Grid.Column="1" Text="120 BPM" VerticalOptions="Center" HorizontalOptions="Center" />
+                    <Button Grid.Column="2" Text="+" Clicked="OnBpmUpClicked" />
+                    <Button Grid.Column="3"
+                            x:Name="StartStopButton"
+                            Text="Start"
+                            Clicked="OnStartStopClicked" />
+                </Grid>
+
+                <!-- 세부 박자 선택 -->
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalOptions="Center">
+                    <Label Text="Subdivision" VerticalOptions="Center" />
+                    <Picker x:Name="SubdivisionPicker" Grid.Column="1" SelectedIndexChanged="OnSubdivisionChanged">
+                        <Picker.Items>
+                            <x:String>Quarter</x:String>
+                            <x:String>Eighth</x:String>
+                            <x:String>Triplet</x:String>
+                            <x:String>Sixteenth</x:String>
+                        </Picker.Items>
+                    </Picker>
+                </Grid>
+            </VerticalStackLayout>
+        </Grid>
     </ScrollView>
 
 </ContentPage>

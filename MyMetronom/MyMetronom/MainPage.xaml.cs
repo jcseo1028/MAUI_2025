@@ -17,6 +17,9 @@ namespace MyMetronom
             UpdateBpmLabel(_metronome.Bpm);
 
             _metronome.Tick += OnTick;
+
+            // Subdivision 초기값 반영
+            SubdivisionPicker.SelectedIndex = 0; // Quarter
         }
 
         private void OnBpmChanged(object sender, ValueChangedEventArgs e)
@@ -57,6 +60,20 @@ namespace MyMetronom
         {
             var bpm = Math.Max(30, (int)Math.Round(BpmSlider.Value) - 1);
             BpmSlider.Value = bpm;
+        }
+
+        private void OnSubdivisionChanged(object sender, EventArgs e)
+        {
+            var sel = SubdivisionPicker.SelectedIndex;
+            var s = sel switch
+            {
+                0 => Subdivision.Quarter,
+                1 => Subdivision.Eighth,
+                2 => Subdivision.Triplet,
+                3 => Subdivision.Sixteenth,
+                _ => Subdivision.Quarter
+            };
+            _metronome.SetSubdivision(s);
         }
 
         private void OnTick(object? sender, EventArgs e)

@@ -10,4 +10,8 @@ public interface IMetronomeService
     void Start(int bpm);
     void Stop();
     void SetBpm(int bpm);
+
+    // 세분화 기댓값 설정 API
+    Subdivision Subdivision { get; }
+    void SetSubdivision(Subdivision subdivision);
 }
