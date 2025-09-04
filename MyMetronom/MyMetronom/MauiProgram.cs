@@ -19,7 +19,11 @@ namespace MyMetronom
 
             // Services
             builder.Services.AddSingleton<IBeepService, BeepService>();
+#if ANDROID
+            builder.Services.AddSingleton<IMetronomeService, AndroidMetronomeService>();
+#else
             builder.Services.AddSingleton<IMetronomeService, MetronomeService>();
+#endif
 
 #if DEBUG
     		builder.Logging.AddDebug();

@@ -1,6 +1,7 @@
 using Android.Media;
 using Android.Util;
 using MyMetronom.Services;
+using System.Threading;
 
 namespace MyMetronom;
 
@@ -15,6 +16,9 @@ public sealed class BeepService : IBeepService
     private static int _normalId;
     private static int _accentId;
 
+    private static readonly ManualResetEventSlim _normalLoaded = new(false);
+    private static readonly ManualResetEventSlim _accentLoaded = new(false);
+
     public void Beep(int milliseconds = 30, int? frequencyHz = null)
     {
         EnsureInitialized();
@@ -28,13 +32,20 @@ public sealed class BeepService : IBeepService
         var soundId = wantAccent ? _accentId : _normalId;
         var ready = wantAccent ? _accentReady : _normalReady;
 
+        if (!ready)
+        {
+            // Wait up to 1s for the sample to finish loading on first call
+            var ev = wantAccent ? _accentLoaded : _normalLoaded;
+            ev.Wait(TimeSpan.FromMilliseconds(1000));
+            ready = wantAccent ? _accentReady : _normalReady;
+        }
+
         if (soundId == 0 || !ready)
         {
             Log.Warn(Tag, $"Sound not ready. accent={wantAccent}, id={soundId}, ready={ready}");
             return;
         }
 
-        // leftVol, rightVol, priority, loop, rate
         var streamId = _pool.Play(soundId, 1f, 1f, 1, 0, 1f);
         Log.Debug(Tag, $"Play result streamId={streamId}, accent={wantAccent}");
     }
@@ -69,6 +80,9 @@ public sealed class BeepService : IBeepService
 
                 _pool.SetOnLoadCompleteListener(new LoadListener());
 
+                _normalLoaded.Reset();
+                _accentLoaded.Reset();
+
                 _normalId = _pool.Load(normalPath, 1);
                 _accentId = _pool.Load(accentPath, 1);
 
@@ -96,11 +110,13 @@ public sealed class BeepService : IBeepService
             if (sampleId == _normalId)
             {
                 _normalReady = true;
+                _normalLoaded.Set();
                 Log.Debug(Tag, "Normal sound ready");
             }
             else if (sampleId == _accentId)
             {
                 _accentReady = true;
+                _accentLoaded.Set();
                 Log.Debug(Tag, "Accent sound ready");
             }
         }
