@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MyMetronom.Services;
 using MyMetronom.Utils;
+using CommunityToolkit.Maui;
 
 namespace MyMetronom
 {
@@ -11,6 +12,7 @@ namespace MyMetronom
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
+                .UseMauiCommunityToolkit()
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -26,7 +28,8 @@ namespace MyMetronom
 #endif
 
 #if DEBUG
-    		builder.Logging.AddDebug();
+            builder.Logging.AddDebug();
+            builder.Logging.SetMinimumLevel(LogLevel.Debug);
 #endif
 
             var app = builder.Build();

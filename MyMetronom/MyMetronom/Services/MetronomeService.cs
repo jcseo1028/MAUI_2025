@@ -1,11 +1,13 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 
 namespace MyMetronom.Services;
 
 public sealed class MetronomeService : IMetronomeService
 {
     private readonly IBeepService _beep;
+    private readonly ILogger<MetronomeService> _logger;
     private CancellationTokenSource? _cts;
     private Thread? _thread;
 
@@ -35,6 +37,7 @@ public sealed class MetronomeService : IMetronomeService
     private long _winTickIndex;
     private TimeProc? _timerCallback;
     private readonly object _winLock = new();
+    private volatile bool _winStopping;
 #endif
 
     public int Bpm { get; private set; } = 120;
@@ -49,9 +52,10 @@ public sealed class MetronomeService : IMetronomeService
 
     public Subdivision Subdivision { get; private set; } = Subdivision.Quarter;
 
-    public MetronomeService(IBeepService beep)
+    public MetronomeService(IBeepService beep, ILogger<MetronomeService> logger)
     {
         _beep = beep;
+        _logger = logger;
     }
 
     public void Start(int bpm)
@@ -59,6 +63,8 @@ public sealed class MetronomeService : IMetronomeService
         SetBpm(bpm);
 #if WINDOWS
         if (_timerId != 0) return;
+        _winStopping = false;
+        _logger.LogDebug("Start: Windows timer starting (BPM={Bpm}, Subdiv={Subdiv})", Bpm, (int)Subdivision);
         StartWindows();
 #else
         if (IsRunning) return;
@@ -69,18 +75,26 @@ public sealed class MetronomeService : IMetronomeService
             Priority = ThreadPriority.Highest
         };
         _thread.Start();
+        _logger.LogDebug("Start: thread started (BPM={Bpm}, Subdiv={Subdiv})", Bpm, (int)Subdivision);
 #endif
     }
 
     public void Stop()
     {
 #if WINDOWS
+        _logger.LogDebug("Stop: Windows timer stopping");
         StopWindows();
+        _logger.LogDebug("Stop: Windows timer stopped");
 #else
-        _cts?.Cancel();
-        try { _thread?.Join(500); } catch { }
-        _thread = null;
-        _cts = null;
+        var t = _thread; var c = _cts;
+        _thread = null; _cts = null;
+        try { c?.Cancel(); } catch { }
+        _logger.LogDebug("Stop: cancel signaled (thread join async)");
+        _ = Task.Run(() =>
+        {
+            try { t?.Join(1000); } catch { }
+            _logger.LogDebug("Stop: thread joined");
+        });
 #endif
     }
 
@@ -97,33 +111,41 @@ public sealed class MetronomeService : IMetronomeService
 #if WINDOWS
     private void StartWindows()
     {
-        // Request 1ms system timer resolution
-        timeBeginPeriod(1);
+        try { timeBeginPeriod(1); } catch { }
         _winSw = Stopwatch.StartNew();
         _winStartTicks = _winSw.ElapsedTicks;
         _winTickIndex = 0;
         _timerCallback = OnWinTimer;
         ScheduleNextWindows();
+        _logger.LogDebug("Windows: timer scheduled first tick");
     }
 
     private void StopWindows()
     {
+        // Signal stop so callback/scheduler stop creating new timers
+        _winStopping = true;
+
+        // Swap timer id under lock, then kill outside to avoid deadlock with TIME_KILL_SYNCHRONOUS
+        uint idToKill = 0;
         lock (_winLock)
         {
-            if (_timerId != 0)
-            {
-                try { timeKillEvent(_timerId); } catch { }
-                _timerId = 0;
-            }
+            idToKill = _timerId;
+            _timerId = 0;
         }
+        if (idToKill != 0)
+        {
+            try { timeKillEvent(idToKill); } catch { }
+        }
+
         try { timeEndPeriod(1); } catch { }
         _winSw?.Stop();
         _winSw = null;
+        _timerCallback = null;
     }
 
     private void ScheduleNextWindows()
     {
-        if (_winSw is null) return;
+        if (_winSw is null || _winStopping) return;
         double freq = Stopwatch.Frequency;
         int div = (int)Subdivision;
         double intervalSec = 60.0 / (Bpm * div);
@@ -136,9 +158,9 @@ public sealed class MetronomeService : IMetronomeService
 
         lock (_winLock)
         {
+            if (_winStopping) return;
             if (_timerId != 0)
             {
-                // Ensure only one outstanding timer
                 try { timeKillEvent(_timerId); } catch { }
                 _timerId = 0;
             }
@@ -148,7 +170,8 @@ public sealed class MetronomeService : IMetronomeService
 
     private void OnWinTimer(uint id, uint msg, IntPtr user, IntPtr dw1, IntPtr dw2)
     {
-        // Perform the tick
+        if (_winStopping) return;
+
         int div = (int)Subdivision;
         bool isAccent = (_winTickIndex % div) == 0;
         try
@@ -159,7 +182,6 @@ public sealed class MetronomeService : IMetronomeService
 
         try { Tick?.Invoke(this, EventArgs.Empty); } catch { }
 
-        // Advance and schedule next
         _winTickIndex++;
         ScheduleNextWindows();
     }
@@ -168,6 +190,7 @@ public sealed class MetronomeService : IMetronomeService
     private void RunLoop(CancellationToken ct)
     {
         var sw = Stopwatch.StartNew();
+        _logger.LogDebug("Thread: run loop started");
 
         long tickIndex = 0;
         long startTicks = sw.ElapsedTicks;
@@ -218,5 +241,6 @@ public sealed class MetronomeService : IMetronomeService
         }
 
         sw.Stop();
+        _logger.LogDebug("Thread: run loop ended");
     }
 }

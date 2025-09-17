@@ -14,8 +14,9 @@
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
             <Label Text="Accent Volume" VerticalOptions="Center" />
             <Slider x:Name="AccentVolume" Grid.Column="1" Minimum="0" Maximum="1" />
+			<Button Text="Close" Clicked="OnCloseClicked" Grid.Column="1" />
         </Grid>
 
-        <Button Text="Close" Clicked="OnCloseClicked" />
+        
     </VerticalStackLayout>
 </ContentPage>

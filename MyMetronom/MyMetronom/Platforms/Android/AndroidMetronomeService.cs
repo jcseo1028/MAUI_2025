@@ -1,5 +1,6 @@
 using Android.Media;
 using Android.Content;
+using Android.Util;
 using System.Runtime.CompilerServices;
 
 namespace MyMetronom.Services;
@@ -7,6 +8,7 @@ namespace MyMetronom.Services;
 public sealed class AndroidMetronomeService : IMetronomeService
 {
     private readonly IBeepService _beep;
+    private const string LogTag = "AndroidMetronome";
 
     private volatile int _bpm = 120;
     private volatile Subdivision _subdiv = Subdivision.Quarter;
@@ -17,6 +19,8 @@ public sealed class AndroidMetronomeService : IMetronomeService
 
     private AudioManager? _audioManager;
     private AudioFocusRequestClass? _focusRequest;
+
+    private volatile bool _stopping;
 
     public int Bpm => _bpm;
     public bool IsRunning => _cts is { IsCancellationRequested: false };
@@ -35,37 +39,40 @@ public sealed class AndroidMetronomeService : IMetronomeService
         SetBpm(bpm);
         if (IsRunning) return;
 
+        _stopping = false;
         RequestAudioFocus();
 
         _cts = new CancellationTokenSource();
         _thread = new Thread(() => RunAudioThread(_cts.Token))
         {
             IsBackground = true,
-            Priority = ThreadPriority.Highest
+            Priority = ThreadPriority.AboveNormal
         };
         _thread.Start();
+        try { Log.Debug(LogTag, "Start: audio thread started"); } catch { }
     }
 
     public void Stop()
     {
-        _cts?.Cancel();
-        try { _thread?.Join(500); } catch { }
-        _thread = null;
-        _cts = null;
-        try
-        {
-            _track?.Stop();
-            _track?.Flush();
-            _track?.Release();
-        }
-        catch { }
-        finally
-        {
-            _track?.Dispose();
-            _track = null;
-        }
+        // Signal stop to prevent further scheduling
+        _stopping = true;
 
-        AbandonAudioFocus();
+        // Capture references to avoid races then clear state for UI immediacy
+        var t = _thread; var cts = _cts;
+        _thread = null; _cts = null;
+        try { cts?.Cancel(); } catch { }
+        try { Log.Debug(LogTag, "Stop: cancel signaled"); } catch { }
+
+        // Do not block UI thread; wait in background and then abandon focus
+        _ = Task.Run(() =>
+        {
+            try { t?.Join(2000); } catch { }
+            finally
+            {
+                try { Log.Debug(LogTag, "Stop: audio thread joined"); } catch { }
+                AbandonAudioFocus();
+            }
+        });
     }
 
     public void SetBpm(int bpm)
@@ -82,7 +89,6 @@ public sealed class AndroidMetronomeService : IMetronomeService
 
     private void RunAudioThread(CancellationToken ct)
     {
-        // Resolve native sample rate
         int sampleRate = 44100;
         try
         {
@@ -95,7 +101,7 @@ public sealed class AndroidMetronomeService : IMetronomeService
 
         var channelMask = ChannelOut.Mono;
         int minBuf = AudioTrack.GetMinBufferSize(sampleRate, channelMask, Encoding.Pcm16bit);
-        int frameSamples = Math.Max(minBuf / 2, sampleRate / 20); // ~50ms
+        int frameSamples = Math.Max(minBuf / 2, sampleRate / 20);
         int writeSamples = AlignTo(frameSamples, 256);
 
         var attrs = new AudioAttributes.Builder()
@@ -110,70 +116,103 @@ public sealed class AndroidMetronomeService : IMetronomeService
             .Build();
 
         _track = new AudioTrack(attrs, format, writeSamples * sizeof(short) * 4, AudioTrackMode.Stream, 0);
+        var track = _track;
 
-        // Pre-warm with silence and start
-        var buffer = new short[writeSamples];
-        _track.Write(buffer, 0, buffer.Length);
-        _track.Play();
         try
         {
-            if (Android.OS.Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.Lollipop)
-                _track.SetVolume(1.0f);
-            else
-#pragma warning disable CS0618
-                _track.SetStereoVolume(1.0f, 1.0f);
-#pragma warning restore CS0618
-        }
-        catch { }
-
-        long samplesGenerated = writeSamples; // account for warmup
-        long samplesPerTick = SamplesPerTick(sampleRate, _bpm, (int)_subdiv);
-        long nextClickSample = samplesGenerated; // first tick right after warmup
-        int subIndex = 0;
-
-        while (!ct.IsCancellationRequested)
-        {
-            System.Array.Clear(buffer, 0, buffer.Length);
-
-            // Snapshot timing
-            int bpm = _bpm;
-            int div = (int)_subdiv;
-            if (div <= 0) div = 1;
-            samplesPerTick = SamplesPerTick(sampleRate, bpm, div);
-
-            long blockStart = samplesGenerated;
-            long blockEnd = blockStart + buffer.Length;
-
-            while (nextClickSample < blockEnd)
+            var buffer = new short[writeSamples];
+            track.Write(buffer, 0, buffer.Length);
+            track.Play();
+            try
             {
-                if (nextClickSample < blockStart)
+                if (Android.OS.Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.Lollipop)
+                    track.SetVolume(1.0f);
+                else
+#pragma warning disable CS0618
+                    track.SetStereoVolume(1.0f, 1.0f);
+#pragma warning restore CS0618
+            }
+            catch { }
+
+            long samplesGenerated = writeSamples;
+            long samplesPerTick = SamplesPerTick(sampleRate, _bpm, (int)_subdiv);
+            long nextClickSample = samplesGenerated;
+            int subIndex = 0;
+
+            while (!ct.IsCancellationRequested && !_stopping)
+            {
+                System.Array.Clear(buffer, 0, buffer.Length);
+
+                int bpm = _bpm;
+                int div = (int)_subdiv;
+                if (div <= 0) div = 1;
+                samplesPerTick = SamplesPerTick(sampleRate, bpm, div);
+
+                long blockStart = samplesGenerated;
+                long blockEnd = blockStart + buffer.Length;
+
+                while (!_stopping && nextClickSample < blockEnd)
                 {
-                    long delta = blockStart - nextClickSample;
-                    long steps = (delta + samplesPerTick - 1) / samplesPerTick;
-                    nextClickSample += steps * samplesPerTick;
-                    subIndex = (subIndex + (int)steps) % div;
-                    continue;
+                    if (nextClickSample < blockStart)
+                    {
+                        long delta = blockStart - nextClickSample;
+                        long steps = (delta + samplesPerTick - 1) / samplesPerTick;
+                        nextClickSample += steps * samplesPerTick;
+                        subIndex = (subIndex + (int)steps) % div;
+                        continue;
+                    }
+
+                    if (_stopping) break;
+                    bool isAccent = (subIndex == 0);
+                    try { _beep.Beep(isAccent ? 90 : 60, isAccent ? 1200 : null); } catch { }
+                    try { Tick?.Invoke(this, EventArgs.Empty); } catch { }
+
+                    nextClickSample += samplesPerTick;
+                    subIndex = (subIndex + 1) % div;
                 }
 
-                // Produce audible tick via SoundPool
-                bool isAccent = (subIndex == 0);
-                try { _beep.Beep(isAccent ? 90 : 60, isAccent ? 1200 : null); } catch { }
+                int written = 0;
+                while (written < buffer.Length)
+                {
+                    if (_stopping || ct.IsCancellationRequested) break;
+                    int toWrite = buffer.Length - written;
+                    int n;
+                    try
+                    {
+                        n = track.Write(buffer, written, toWrite, WriteMode.NonBlocking);
+                    }
+                    catch
+                    {
+                        try { Log.Warn(LogTag, "Write threw, exiting audio thread"); } catch { }
+                        return;
+                    }
+                    if (n == 0)
+                    {
+                        Thread.SpinWait(5000);
+                        continue;
+                    }
+                    if (n < 0) break;
+                    written += n;
+                }
 
-                try { Tick?.Invoke(this, EventArgs.Empty); } catch { }
-
-                nextClickSample += samplesPerTick;
-                subIndex = (subIndex + 1) % div;
+                samplesGenerated += buffer.Length;
             }
-
-            int written = 0;
-            while (written < buffer.Length && !ct.IsCancellationRequested)
+        }
+        finally
+        {
+            try
             {
-                int n = _track!.Write(buffer, written, buffer.Length - written);
-                if (n <= 0) break;
-                written += n;
+                track?.Stop();
+                track?.Flush();
+                track?.Release();
             }
-
-            samplesGenerated += buffer.Length;
+            catch { }
+            finally
+            {
+                try { track?.Dispose(); } catch { }
+                _track = null;
+                try { Log.Debug(LogTag, "Audio thread cleaned up"); } catch { }
+            }
         }
     }
 

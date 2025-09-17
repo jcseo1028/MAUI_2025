@@ -1,4 +1,6 @@
-﻿using MyMetronom.Pages;
+﻿using CommunityToolkit.Maui.Extensions;
+using CommunityToolkit.Maui.Views;
+using MyMetronom.Pages;
 using MyMetronom.Services;
 using MyMetronom.Utils;
 
@@ -9,9 +11,11 @@ namespace MyMetronom
         private const string PrefBpm = "pref_bpm";
         private const string PrefSubdivision = "pref_subdivision";
         private const string PrefYoutube = "pref_youtube";
+        private const string PrefFlash = "pref_flash";
 
         private readonly IMetronomeService _metronome;
         private bool _flash;
+        private bool _flashEnabled;
 
         public MainPage()
         {
@@ -30,6 +34,9 @@ namespace MyMetronom
             var yt = Preferences.Get(PrefYoutube, string.Empty);
             if (!string.IsNullOrEmpty(yt))
                 YoutubeUrlEntry.Text = yt;
+
+            _flashEnabled = Preferences.Get(PrefFlash, true);
+            TickIndicator.IsVisible = _flashEnabled;
 
             _metronome.Tick += OnTick;
         }
@@ -119,6 +126,8 @@ namespace MyMetronom
 
         private void OnTick(object? sender, EventArgs e)
         {
+            if (!_flashEnabled && !TickIndicator.IsVisible) return;
+
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 _flash = !_flash;
@@ -197,19 +206,16 @@ allowfullscreen></iframe>
             return null;
         }
 
-        private void OnSettingsClicked(object sender, EventArgs e)
+        private async void OnSettingsClicked(object sender, EventArgs e)
         {
-            SettingsOverlay.IsVisible = true;
-        }
+            var popup = new SettingsPopup(initialFlashEnabled: _flashEnabled, onFlashChanged: val =>
+            {
+                _flashEnabled = val;
+                TickIndicator.IsVisible = _flashEnabled;
+                Preferences.Set(PrefFlash, _flashEnabled);
+            });
 
-        private void OnSettingsCloseClicked(object sender, EventArgs e)
-        {
-            SettingsOverlay.IsVisible = false;
-        }
-
-        private void OnSettingsBackdropTapped(object sender, TappedEventArgs e)
-        {
-            SettingsOverlay.IsVisible = false;
+            await this.ShowPopupAsync(popup);
         }
     }
 }

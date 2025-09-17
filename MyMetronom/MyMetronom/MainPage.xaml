@@ -8,126 +8,88 @@
         <ToolbarItem Text="Settings" Priority="0" Order="Primary" Clicked="OnSettingsClicked" />
     </ContentPage.ToolbarItems>
 
-    <!-- Root grid to allow overlay dialog -->
-    <Grid>
-        <!-- Main content -->
-        <ScrollView>
-            <VerticalStackLayout Spacing="12" Padding="16,16,16,0">
-                <!-- 메트로놈 섹션: Frame(모서리/클리핑) 안에 Grid로 배경 BoxView + 컨트롤 겹치기 -->
-                <Frame CornerRadius="12" HasShadow="False" Padding="0" BackgroundColor="Transparent">
-                    <Grid Padding="0">
-                        <!-- 배경/플래시 역할: 콘텐츠 크기에 맞춰 전체 채움 -->
-                        <BoxView x:Name="TickIndicator"
-                                 BackgroundColor="{StaticResource Primary}"
-                                 Opacity="0.29"
-                                 HorizontalOptions="Fill"
-                                 VerticalOptions="Fill"
-                                 InputTransparent="True" />
+    <ScrollView>
+        <VerticalStackLayout Spacing="12" Padding="16,16,16,0">
+            <Frame CornerRadius="12" HasShadow="False" Padding="0" BackgroundColor="Transparent">
+                <Grid Padding="0">
+                    <BoxView x:Name="TickIndicator"
+                             BackgroundColor="{StaticResource Primary}"
+                             Opacity="0.29"
+                             HorizontalOptions="Fill"
+                             VerticalOptions="Fill"
+                             InputTransparent="True" />
 
-                        <!-- 실제 컨트롤 -->
-                        <VerticalStackLayout Padding="24" Spacing="18" VerticalOptions="Start">
-                            <Label Text="Metronome" Style="{StaticResource Headline}" />
+                    <VerticalStackLayout Padding="24" Spacing="18" VerticalOptions="Start">
+                        <Label Text="Metronome" Style="{StaticResource Headline}" />
 
-                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalOptions="Center">
-                                <Label Text="BPM" VerticalOptions="Center" />
-                                <Slider x:Name="BpmSlider"
-                                        Grid.Column="1"
-                                        Minimum="30" Maximum="300"
-                                        ValueChanged="OnBpmChanged" />
-                            </Grid>
-
-                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12" VerticalOptions="Center">
-                                <Button Text="-" Clicked="OnBpmDownClicked" />
-                                <Label x:Name="BpmLabel" Grid.Column="1" Text="120 BPM" VerticalOptions="Center" HorizontalOptions="Center" />
-                                <Button Grid.Column="2" Text="+" Clicked="OnBpmUpClicked" />
-                                <Button Grid.Column="3"
-                                        x:Name="StartStopButton"
-                                        Text="Start"
-                                        Clicked="OnStartStopClicked" />
-                            </Grid>
-
-                            <!-- 세부 박자 선택: 라디오 버튼 그룹(플랫 버튼 스타일) -->
-                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalOptions="Center">
-                                <Label Text="" VerticalOptions="Center" />
-                                <HorizontalStackLayout Grid.Column="1" Spacing="8">
-                                    <RadioButton x:Name="QuarterRadio" GroupName="Subdivision" Style="{StaticResource FlatRadioButton}" CheckedChanged="OnSubdivisionRadioCheckedChanged">
-                                        <RadioButton.Content>
-                                            <HorizontalStackLayout Spacing="1">
-                                                <Image Source="dot_4.png" HeightRequest="32" WidthRequest="32"/>
-                                                <Label Text=""/>
-                                            </HorizontalStackLayout>
-                                        </RadioButton.Content>
-                                    </RadioButton>
-                                    <RadioButton x:Name="EighthRadio" GroupName="Subdivision" Style="{StaticResource FlatRadioButton}" CheckedChanged="OnSubdivisionRadioCheckedChanged">
-                                        <RadioButton.Content>
-                                            <HorizontalStackLayout Spacing="1">
-                                                <Image Source="dot_8.png" HeightRequest="32" WidthRequest="32"/>
-                                                <Label Text=""/>
-                                            </HorizontalStackLayout>
-                                        </RadioButton.Content>
-                                    </RadioButton>
-                                    <RadioButton x:Name="TripletRadio" GroupName="Subdivision" Style="{StaticResource FlatRadioButton}" CheckedChanged="OnSubdivisionRadioCheckedChanged">
-                                        <RadioButton.Content>
-                                            <HorizontalStackLayout Spacing="1">
-                                                <Image Source="dot_8_3.png" HeightRequest="32" WidthRequest="32"/>
-                                                <Label Text=""/>
-                                            </HorizontalStackLayout>
-                                        </RadioButton.Content>
-                                    </RadioButton>
-                                    <RadioButton x:Name="SixteenthRadio" GroupName="Subdivision" Style="{StaticResource FlatRadioButton}" CheckedChanged="OnSubdivisionRadioCheckedChanged">
-                                        <RadioButton.Content>
-                                            <HorizontalStackLayout Spacing="1">
-                                                <Image Source="dot_16.png" HeightRequest="32" WidthRequest="32"/>
-                                                <Label Text=""/>
-                                            </HorizontalStackLayout>
-                                        </RadioButton.Content>
-                                    </RadioButton>
-                                </HorizontalStackLayout>
-                            </Grid>
-                        </VerticalStackLayout>
-                    </Grid>
-                </Frame>
-
-                <!-- YouTube 섹션 -->
-                <VerticalStackLayout Padding="0,8,0,16" Spacing="8">
-                    <Label Text="YouTube" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                        <Entry x:Name="YoutubeUrlEntry" Placeholder="YouTube URL 또는 동영상 ID 입력" TextChanged="OnYoutubeTextChanged" />
-                        <Button Grid.Column="1" Text="Load" Clicked="OnLoadYoutubeClicked" />
-                    </Grid>
-                    <WebView x:Name="YoutubeWebView" HeightRequest="360" IsVisible="False" />
-                </VerticalStackLayout>
-            </VerticalStackLayout>
-        </ScrollView>
-
-        <!-- Settings dialog overlay -->
-        <Grid x:Name="SettingsOverlay" IsVisible="False" BackgroundColor="#80000000">
-            <!-- Tap outside to close -->
-            <Grid.GestureRecognizers>
-                <TapGestureRecognizer Tapped="OnSettingsBackdropTapped" NumberOfTapsRequired="1" />
-            </Grid.GestureRecognizers>
-            <Grid HorizontalOptions="Center" VerticalOptions="Center" Padding="0">
-                <Frame CornerRadius="12" HasShadow="True" Padding="16" BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}">
-                    <VerticalStackLayout Spacing="12" WidthRequest="320">
-                        <Label Text="Settings" Style="{StaticResource SubHeadline}" />
-
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                            <Label Text="Flash on Tick" VerticalOptions="Center" />
-                            <Switch x:Name="FlashSwitch" Grid.Column="1" />
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalOptions="Center">
+                            <Label Text="BPM" VerticalOptions="Center" />
+                            <Slider x:Name="BpmSlider"
+                                    Grid.Column="1"
+                                    Minimum="30" Maximum="300"
+                                    ValueChanged="OnBpmChanged" />
                         </Grid>
 
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                            <Label Text="Accent Volume" VerticalOptions="Center" />
-                            <Slider x:Name="AccentVolume" Grid.Column="1" Minimum="0" Maximum="1" />
+                        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12" VerticalOptions="Center">
+                            <Button Text="-" Clicked="OnBpmDownClicked" />
+                            <Label x:Name="BpmLabel" Grid.Column="1" Text="120 BPM" VerticalOptions="Center" HorizontalOptions="Center" />
+                            <Button Grid.Column="2" Text="+" Clicked="OnBpmUpClicked" />
+                            <Button Grid.Column="3"
+                                    x:Name="StartStopButton"
+                                    Text="Start"
+                                    Clicked="OnStartStopClicked" />
                         </Grid>
 
-                        <HorizontalStackLayout HorizontalOptions="End" Spacing="8">
-                            <Button Text="Close" Clicked="OnSettingsCloseClicked" />
-                        </HorizontalStackLayout>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalOptions="Center">
+                            <Label Text="" VerticalOptions="Center" />
+                            <HorizontalStackLayout Grid.Column="1" Spacing="8">
+                                <RadioButton x:Name="QuarterRadio" GroupName="Subdivision" Style="{StaticResource FlatRadioButton}" CheckedChanged="OnSubdivisionRadioCheckedChanged">
+                                    <RadioButton.Content>
+                                        <HorizontalStackLayout Spacing="1">
+                                            <Image Source="dot_4.png" HeightRequest="32" WidthRequest="32"/>
+                                            <Label Text=""/>
+                                        </HorizontalStackLayout>
+                                    </RadioButton.Content>
+                                </RadioButton>
+                                <RadioButton x:Name="EighthRadio" GroupName="Subdivision" Style="{StaticResource FlatRadioButton}" CheckedChanged="OnSubdivisionRadioCheckedChanged">
+                                    <RadioButton.Content>
+                                        <HorizontalStackLayout Spacing="1">
+                                            <Image Source="dot_8.png" HeightRequest="32" WidthRequest="32"/>
+                                            <Label Text=""/>
+                                        </HorizontalStackLayout>
+                                    </RadioButton.Content>
+                                </RadioButton>
+                                <RadioButton x:Name="TripletRadio" GroupName="Subdivision" Style="{StaticResource FlatRadioButton}" CheckedChanged="OnSubdivisionRadioCheckedChanged">
+                                    <RadioButton.Content>
+                                        <HorizontalStackLayout Spacing="1">
+                                            <Image Source="dot_8_3.png" HeightRequest="32" WidthRequest="32"/>
+                                            <Label Text=""/>
+                                        </HorizontalStackLayout>
+                                    </RadioButton.Content>
+                                </RadioButton>
+                                <RadioButton x:Name="SixteenthRadio" GroupName="Subdivision" Style="{StaticResource FlatRadioButton}" CheckedChanged="OnSubdivisionRadioCheckedChanged">
+                                    <RadioButton.Content>
+                                        <HorizontalStackLayout Spacing="1">
+                                            <Image Source="dot_16.png" HeightRequest="32" WidthRequest="32"/>
+                                            <Label Text=""/>
+                                        </HorizontalStackLayout>
+                                    </RadioButton.Content>
+                                </RadioButton>
+                            </HorizontalStackLayout>
+                        </Grid>
                     </VerticalStackLayout>
-                </Frame>
-            </Grid>
-        </Grid>
-    </Grid>
+                </Grid>
+            </Frame>
+
+            <VerticalStackLayout Padding="0,8,0,16" Spacing="8">
+                <Label Text="YouTube" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <Entry x:Name="YoutubeUrlEntry" Placeholder="YouTube URL 또는 동영상 ID 입력" TextChanged="OnYoutubeTextChanged" />
+                    <Button Grid.Column="1" Text="Load" Clicked="OnLoadYoutubeClicked" />
+                </Grid>
+                <WebView x:Name="YoutubeWebView" HeightRequest="360" IsVisible="False" />
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
 
 </ContentPage>
