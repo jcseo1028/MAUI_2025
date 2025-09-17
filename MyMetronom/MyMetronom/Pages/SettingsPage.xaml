@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="MyMetronom.Pages.SettingsPage"
+             Title="Settings">
+    <VerticalStackLayout Padding="16" Spacing="12">
+        <Label Text="Settings" Style="{StaticResource SubHeadline}" />
+
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+            <Label Text="Flash on Tick" VerticalOptions="Center" />
+            <Switch x:Name="FlashSwitch" Grid.Column="1" />
+        </Grid>
+
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+            <Label Text="Accent Volume" VerticalOptions="Center" />
+            <Slider x:Name="AccentVolume" Grid.Column="1" Minimum="0" Maximum="1" />
+        </Grid>
+
+        <Button Text="Close" Clicked="OnCloseClicked" />
+    </VerticalStackLayout>
+</ContentPage>

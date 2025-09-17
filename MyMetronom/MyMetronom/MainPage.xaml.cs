@@ -1,4 +1,5 @@
-﻿using MyMetronom.Services;
+﻿using MyMetronom.Pages;
+using MyMetronom.Services;
 using MyMetronom.Utils;
 
 namespace MyMetronom
@@ -194,6 +195,21 @@ allowfullscreen></iframe>
             }
 
             return null;
+        }
+
+        private void OnSettingsClicked(object sender, EventArgs e)
+        {
+            SettingsOverlay.IsVisible = true;
+        }
+
+        private void OnSettingsCloseClicked(object sender, EventArgs e)
+        {
+            SettingsOverlay.IsVisible = false;
+        }
+
+        private void OnSettingsBackdropTapped(object sender, TappedEventArgs e)
+        {
+            SettingsOverlay.IsVisible = false;
         }
     }
 }
