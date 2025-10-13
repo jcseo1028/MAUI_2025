@@ -21,6 +21,7 @@ namespace MyMetronom
 
             // Services
             builder.Services.AddSingleton<IBeepService, BeepService>();
+            builder.Services.AddSingleton<IRunStatsService, RunStatsService>();
 #if ANDROID
             builder.Services.AddSingleton<IMetronomeService, AndroidMetronomeService>();
 #else
@@ -34,6 +35,13 @@ namespace MyMetronom
 
             var app = builder.Build();
             ServiceHelper.Services = app.Services;
+
+            // Initialize database
+            _ = Task.Run(async () =>
+            {
+                try { await app.Services.GetRequiredService<IRunStatsService>().InitializeAsync(); } catch { }
+            });
+
             return app;
         }
     }

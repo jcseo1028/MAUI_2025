@@ -1,6 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:MyMetronom.Controls"
              x:Class="MyMetronom.MainPage"
              Title="Metronome">
 
@@ -39,6 +40,12 @@
                                     Text="Start"
                                     Clicked="OnStartStopClicked" />
                         </Grid>
+
+                        <!-- Runtime display -->
+                        <Label x:Name="RuntimeLabel"
+                               Text="Run: 00:00:00"
+                               FontAttributes="Bold"
+                               HorizontalOptions="Start" />
 
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalOptions="Center">
                             <Label Text="" VerticalOptions="Center" />
@@ -88,6 +95,12 @@
                     <Button Grid.Column="1" Text="Load" Clicked="OnLoadYoutubeClicked" />
                 </Grid>
                 <WebView x:Name="YoutubeWebView" HeightRequest="360" IsVisible="False" />
+            </VerticalStackLayout>
+
+            <!-- Activity heatmap -->
+            <VerticalStackLayout Padding="0,8,0,24" Spacing="8">
+                <Label Text="Activity" />
+                <controls:ActivityHeatmap x:Name="ActivityHeatmap" HeightRequest="120" />
             </VerticalStackLayout>
         </VerticalStackLayout>
     </ScrollView>

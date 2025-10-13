@@ -12,15 +12,22 @@ namespace MyMetronom
         private const string PrefSubdivision = "pref_subdivision";
         private const string PrefYoutube = "pref_youtube";
         private const string PrefFlash = "pref_flash";
+        private const string PrefAccumMs = "pref_accum_ms";
+        private const string PrefLastDate = "pref_last_date";
 
         private readonly IMetronomeService _metronome;
+        private readonly IRunStatsService _stats;
         private bool _flash;
         private bool _flashEnabled;
+
+        private DateTimeOffset? _sessionStartUtc;
+        private long _accumulatedMs;
 
         public MainPage()
         {
             InitializeComponent();
             _metronome = ServiceHelper.GetRequiredService<IMetronomeService>();
+            _stats = ServiceHelper.GetRequiredService<IRunStatsService>();
 
             // restore
             var bpm = Preferences.Get(PrefBpm, _metronome.Bpm);
@@ -37,6 +44,10 @@ namespace MyMetronom
 
             _flashEnabled = Preferences.Get(PrefFlash, true);
             TickIndicator.IsVisible = _flashEnabled;
+
+            // restore accumulated runtime
+            _accumulatedMs = Preferences.Get(PrefAccumMs, 0L);
+            UpdateRuntimeLabel();
 
             _metronome.Tick += OnTick;
         }
@@ -61,6 +72,15 @@ namespace MyMetronom
             Preferences.Set(PrefSubdivision, index);
         }
 
+        private void UpdateRuntimeLabel()
+        {
+            var ts = TimeSpan.FromMilliseconds(_accumulatedMs + CurrentSessionMs());
+            RuntimeLabel.Text = $"Run: {ts:hh\\:mm\\:ss}";
+        }
+
+        private long CurrentSessionMs()
+            => _sessionStartUtc is null ? 0L : (long)(DateTimeOffset.UtcNow - _sessionStartUtc.Value).TotalMilliseconds;
+
         protected override void OnAppearing()
         {
             base.OnAppearing();
@@ -71,7 +91,24 @@ namespace MyMetronom
                 var prev = TickIndicator.Opacity;
                 TickIndicator.Opacity = prev + 0.001;
                 TickIndicator.Opacity = prev;
+                UpdateRuntimeLabel();
             });
+
+            _ = LoadHeatmapAsync();
+        }
+
+        private async Task LoadHeatmapAsync()
+        {
+            try
+            {
+                var end = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+                var start = end.AddDays(-7 * 12 + 1); // ~12 weeks
+                var data = await _stats.GetTotalsForRangeAsync(start, end);
+                ActivityHeatmap.StartDate = start;
+                ActivityHeatmap.EndDate = end;
+                ActivityHeatmap.Data = data;
+            }
+            catch { }
         }
 
         private void OnBpmChanged(object sender, ValueChangedEventArgs e)
@@ -87,19 +124,39 @@ namespace MyMetronom
             BpmLabel.Text = $"{bpm} BPM";
         }
 
-        private void OnStartStopClicked(object sender, EventArgs e)
+        private async void OnStartStopClicked(object sender, EventArgs e)
         {
             if (_metronome.IsRunning)
             {
+                // Stop: finalize session
                 _metronome.Stop();
                 StartStopButton.Text = "Start";
                 TickIndicator.Opacity = 0.29;
+
+                var end = DateTimeOffset.UtcNow;
+                if (_sessionStartUtc is DateTimeOffset start)
+                {
+                    var durMs = (long)(end - start).TotalMilliseconds;
+                    if (durMs > 0)
+                    {
+                        _accumulatedMs += durMs;
+                        Preferences.Set(PrefAccumMs, _accumulatedMs);
+                        // persist per-day splits
+                        try { await _stats.AddAsync(start, end); } catch { }
+                    }
+                }
+                _sessionStartUtc = null;
+                UpdateRuntimeLabel();
+                await LoadHeatmapAsync();
             }
             else
             {
+                // Start: begin session
                 var bpm = (int)Math.Round(BpmSlider.Value);
                 _metronome.Start(bpm);
                 StartStopButton.Text = "Stop";
+                _sessionStartUtc = DateTimeOffset.UtcNow;
+                UpdateRuntimeLabel();
             }
         }
 
@@ -126,13 +183,20 @@ namespace MyMetronom
 
         private void OnTick(object? sender, EventArgs e)
         {
-            if (!_flashEnabled && !TickIndicator.IsVisible) return;
-
-            MainThread.BeginInvokeOnMainThread(() =>
+            if (_flashEnabled && TickIndicator.IsVisible)
             {
-                _flash = !_flash;
-                TickIndicator.Opacity = _flash ? 0.24 : 0.34;
-            });
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    _flash = !_flash;
+                    TickIndicator.Opacity = _flash ? 0.24 : 0.34;
+                });
+            }
+
+            // update runtime label live while running
+            if (_sessionStartUtc is not null)
+            {
+                MainThread.BeginInvokeOnMainThread(UpdateRuntimeLabel);
+            }
         }
 
         private void OnYoutubeTextChanged(object? sender, TextChangedEventArgs e)
